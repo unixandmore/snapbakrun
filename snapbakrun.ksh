@@ -76,7 +76,7 @@ lvinfo()
             print "\n${SNAPDIR}/${dir} mount point exists \n" >> ${LOG}
         fi
 
-        lv_snap_mb=$(df -tm|grep /"${dir}"|awk '{used=+$3} END {printf "%.0f", used+10}')
+        lv_snap_mb=$(df -tm|grep /"${dir}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
         lv_name=$(lsfs /"${dir}"| awk 'NR>1 {print $1}'| awk ' BEGIN{FS="/"} {print $3}')
         lv_vg=$(lslv ${lv_name} | grep "VOLUME GROUP" | sed 's/  *//g'| awk 'BEGIN{FS=":"} {print $3}')
         lv_lp_pp=$(lslv ${lv_name}|grep "^LPs"|${sed} 's/  *//g'| ${sed} -r 's/(LPs:|PPs:)/ /g' | awk 'BEGIN{FS=" "} {print $1":"$2}')
@@ -168,18 +168,17 @@ create_snap()
     typeset snap_fs="/${dir}"
     echo "dir: ${dir} snap_fs: ${snap_fs}"
     typeset -i snap_size="${lvinfo[${dir}].lv_snap_mb}"
-    typeset -i snap_size_mb=$(($snap_size*.1))
-    echo "snap_size_mb: $snap_size_mb"
     typeset snap_vg="${lvinfo[${dir}].lv_vg}"
     typeset -i snap_vg_pp_size="${vginfo[${snap_vg}].pp_size}"
     typeset -i snap_vg_pp_free="${vginfo[${snap_vg}].pp_free}"
     #Check available space
+    #echo "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size_mb}"
     (( snap_pp = ${snap_size} / ${vginfo[${lv_vg}].pp_size} + 1  ))
 
     if [[ ${snap_pp} -lt ${snap_vg_pp_free} ]]
     then
         print "\nThere are enough free PPs in ${snap_vg} to create snapshot\n" >> ${LOG}
-        snap_lv=$(snapshot -o snapfrom=${snap_fs} -o size=${snap_size_mb}M)
+        snap_lv=$(snapshot -o snapfrom=${snap_fs} -o size=${snap_size}M)
         if [[ -n ${snap_lv} ]]
         then
             snap_lv=$(echo ${snap_lv} | awk '{print $8}')
@@ -200,7 +199,6 @@ create_snap()
         echo "Not enough free PPs in ${snap_vg} to create snapshot of ${snap_fs} snap_pp: ${snap_pp} snap_vg_pp_free: ${snap_vg_pp_free}" >> ${LOG}
         return 1
     fi
-    #echo "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free}"
 }
         
 usage()
