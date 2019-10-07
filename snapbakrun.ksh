@@ -177,7 +177,7 @@ create_snap()
 
     if [[ ${snap_pp} -lt ${snap_vg_pp_free} ]]
     then
-        echo "There are enough free PPs in ${snap_vg} to create snapshot\n" tee -a ${LOG}
+        echo "There are enough free PPs in ${snap_vg} to create snapshot\n" | tee -a ${LOG}
         snap_lv=$(snapshot -o snapfrom=${snap_fs} -o size=${snap_size}M)
         if [[ -n ${snap_lv} ]]
         then
