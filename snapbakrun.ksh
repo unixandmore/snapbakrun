@@ -4,7 +4,7 @@
 
 
 DATE=$(date +%Y'-'%m'-'%d)
-LOG=${0}_${DATE}.out
+LOG=/tmp/snapbakrun_${DATE}.out
 #exec 2>${LOG}
 
 SNAPDIR=${SNAPDIR:-/snapshot}
@@ -22,7 +22,7 @@ mksysb="/usr/bin/mksysb"
 rsync="/usr/bin/rsync"
 
 
-echo ${DATE} > ${LOG}
+echo ${DATE} >> ${LOG}
 
 
 ##################################################
@@ -70,10 +70,10 @@ lvinfo()
     do
         if [[ ! -d ${SNAPDIR}/${dir} ]]
         then
-            print "\n${SNAPDIR}/${dir} mount point does not exist - creating\n" >> ${LOG}
+            echo "${SNAPDIR}/${dir} mount point does not exist - creating\n" | tee -a ${LOG}
             mkdir -m 777 -p ${SNAPDIR}/${dir}
         else
-            print "\n${SNAPDIR}/${dir} mount point exists \n" >> ${LOG}
+            echo "${SNAPDIR}/${dir} mount point exists \n" | tee -a ${LOG}
         fi
 
         lv_snap_mb=$(df -tm|grep /"${dir}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
@@ -125,7 +125,7 @@ cleanall()
     SNAP_RC=$(echo $?)
     if [[ ${SNAP_RC} -eq 0 ]]
     then
-        print "\nNothing to clean up for ${dir}\n" #>> ${LOG}
+        echo "Nothing to clean up for ${dir}\n" | tee -a ${LOG}
     else
         snaplv=$(snapshot -q /${dir} | grep "^*" |awk '{print $2}')
         typeset -i DF_RC=0
@@ -138,9 +138,9 @@ cleanall()
         fi
         if [[ $(snapshot -d ${snaplv} > /dev/null 2>&1) -ne 0 ]]
         then
-            print "\nError removing the snapshot for /${dir} - Manual intervention required\n" >> ${LOG}
+            echo "Error removing the snapshot for /${dir} - Manual intervention required\n" | tee -a ${LOG}
         else
-            print "\nRemoved the snapshot for /${dir}\n" >> ${LOG}
+            echo "Removed the snapshot for /${dir}\n" | tee -a ${LOG}
         fi
     fi
 }
@@ -166,37 +166,37 @@ create_snap()
     trap 'cleanup' 1 2 15
     typeset dir=$1
     typeset snap_fs="/${dir}"
-    echo "dir: ${dir} snap_fs: ${snap_fs}"
+    #echo "dir: ${dir} snap_fs: ${snap_fs}"
     typeset -i snap_size="${lvinfo[${dir}].lv_snap_mb}"
     typeset snap_vg="${lvinfo[${dir}].lv_vg}"
     typeset -i snap_vg_pp_size="${vginfo[${snap_vg}].pp_size}"
     typeset -i snap_vg_pp_free="${vginfo[${snap_vg}].pp_free}"
     #Check available space
-    #echo "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size_mb}"
+    echo "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size}" | tee -a ${LOG}
     (( snap_pp = ${snap_size} / ${vginfo[${lv_vg}].pp_size} + 1  ))
 
     if [[ ${snap_pp} -lt ${snap_vg_pp_free} ]]
     then
-        print "\nThere are enough free PPs in ${snap_vg} to create snapshot\n" >> ${LOG}
+        echo "There are enough free PPs in ${snap_vg} to create snapshot\n" tee -a ${LOG}
         snap_lv=$(snapshot -o snapfrom=${snap_fs} -o size=${snap_size}M)
         if [[ -n ${snap_lv} ]]
         then
             snap_lv=$(echo ${snap_lv} | awk '{print $8}')
-            print "\nCreated snap logical volume ${snap_lv} for filesystem ${snap_fs}\n" >> ${LOG}
+            echo "Created snap logical volume ${snap_lv} for filesystem ${snap_fs}\n" | tee -a ${LOG}
             if [[ $(mount -v jfs2 -o snapshot ${snap_lv} ${SNAPDIR}${snap_fs}) -ne 0 ]]
             then
-                print "\nFailed to mount ${SNAPDIR}${snap_fs} on ${snap_lv}\n" >> ${LOG}
+                echo "Failed to mount ${SNAPDIR}${snap_fs} on ${snap_lv}\n" | tee -a ${LOG}
                 return 1
             else
-                print "\nMounted ${SNAPDIR}${snap_fs} on ${snap_lv}" >> ${LOG}
+                echo "Mounted ${SNAPDIR}${snap_fs} on ${snap_lv}\n" | tee -a ${LOG}
                 return 0
             fi
         else
-            echo "Failed to create snapshot for ${snap_fs}" >> ${LOG}
+            echo "Failed to create snapshot for ${snap_fs}" | tee -a ${LOG}
             return 1
         fi
     else
-        echo "Not enough free PPs in ${snap_vg} to create snapshot of ${snap_fs} snap_pp: ${snap_pp} snap_vg_pp_free: ${snap_vg_pp_free}" >> ${LOG}
+        echo "Not enough free PPs in ${snap_vg} to create snapshot of ${snap_fs} snap_pp: ${snap_pp} snap_vg_pp_free: ${snap_vg_pp_free}" |tee -a ${LOG}
         return 1
     fi
 }
