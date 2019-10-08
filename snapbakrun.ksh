@@ -21,21 +21,18 @@ lslv="/usr/sbin/lslv"
 mksysb="/usr/bin/mksysb"
 rsync="/usr/bin/rsync"
 
-
-#echo ${DATE} >> ${LOG}
-
 log_info()
 {
         LEVEL=INFO
         MSG=$1
-        echo "[$(date +%Y'-'%m'-'%d' '%T):${LEVEL}] ${MSG}" | tee -a ${LOG}
+        echo "$(date +%Y'/'%m'/'%d' '%T' ['%s']') ${MSG}" | tee -a ${LOG}
 }
 
 log_error()
 {
         LEVEL=ERROR
         MSG=$1
-        echo "[$(date +%Y'-'%m'-'%d' '%T):${LEVEL}] ${MSG}" | tee -a ${LOG}
+        echo "$(date +%Y'/'%m'/'%d' '%T' ['%s']') ${LEVEL}: ${MSG}" | tee -a ${LOG}
 }
 
 ##################################################
