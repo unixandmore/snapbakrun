@@ -79,8 +79,6 @@ lvinfo()
         then
             log_info "${SNAPDIR}/${dir} mount point does not exist - creating"
             mkdir -m 777 -p ${SNAPDIR}/${dir}
-        else
-            log_info "${SNAPDIR}/${dir} mount point exists \n"
         fi
 
         lv_snap_mb=$(df -tm|grep /"${dir}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
@@ -132,7 +130,7 @@ cleanall()
     SNAP_RC=$(echo $?)
     if [[ ${SNAP_RC} -eq 0 ]]
     then
-        log_info "Nothing to clean up for ${dir}\n"
+        log_info "Nothing to clean up for ${dir}"
     else
         snaplv=$(snapshot -q /${dir} | grep "^*" |awk '{print $2}')
         typeset -i DF_RC=0
@@ -178,12 +176,12 @@ create_snap()
     typeset -i snap_vg_pp_size="${vginfo[${snap_vg}].pp_size}"
     typeset -i snap_vg_pp_free="${vginfo[${snap_vg}].pp_free}"
     #Check available space
-    log_info "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size}" 
+    #log_info "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size}" 
     (( snap_pp = ${snap_size} / ${vginfo[${lv_vg}].pp_size} + 1  ))
 
     if [[ ${snap_pp} -lt ${snap_vg_pp_free} ]]
     then
-        log_info "There are enough free PPs in ${snap_vg} to create snapshot"
+        #log_info "There are enough free PPs in ${snap_vg} to create snapshot"
         snap_lv=$(snapshot -o snapfrom=${snap_fs} -o size=${snap_size}M)
         if [[ -n ${snap_lv} ]]
         then
