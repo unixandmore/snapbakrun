@@ -5,11 +5,8 @@
 
 DATE=$(date +%Y'-'%m'-'%d)
 LOG=/tmp/snapbakrun_${DATE}.out
-#exec 2>${LOG}
-
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
-MKSYSB=false
 DIRLIST=${DIRLIST:-"met page data home"}
 set -A DIRS $(echo "${DIRLIST}")
 sed="/usr/linux/bin/sed"
@@ -25,14 +22,14 @@ log_info()
 {
         LEVEL=INFO
         MSG=$1
-        echo "$(date +%Y'/'%m'/'%d' '%T' ['%s']') ${MSG}" | tee -a ${LOG}
+        echo "$(date +%Y'/'%m'/'%d' '%T' ') [${LEVEL}]: ${MSG}" | tee -a ${LOG}
 }
 
 log_error()
 {
         LEVEL=ERROR
         MSG=$1
-        echo "$(date +%Y'/'%m'/'%d' '%T' ['%s']') ${LEVEL}: ${MSG}" | tee -a ${LOG}
+        echo "$(date +%Y'/'%m'/'%d' '%T' ') [${LEVEL}]: ${MSG}" | tee -a ${LOG}
 }
 
 ##################################################
@@ -209,7 +206,7 @@ create_snap()
         return 1
     fi
 }
-        
+
 usage()
 {
     echo "snapbakrun.ksh -c -s"
@@ -225,9 +222,10 @@ do
             for dir in ${!lvinfo[*]}
             do
 		create_snap ${dir}
-		${rsync} -aru --delete --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
+		${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
             done
 	    cleanup
+	    mail -s "Backup Report for $(hostname) on $(date)" rcox@unixandmore.com < ${LOG}
             ;;
         -c)
             setup
