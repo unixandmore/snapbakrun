@@ -8,7 +8,7 @@ LOG=/tmp/snapbakrun_${DATE}.out
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
 DIRLIST=${DIRLIST:-"met page data home"}
-MAILTO=${MAILTO:-""}
+MAILTO=${MAILTO}
 set -A DIRS $(echo "${DIRLIST}")
 sed="/usr/linux/bin/sed"
 tar="/usr/linux/bin/tar"
