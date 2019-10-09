@@ -220,14 +220,14 @@ do
             typeset snap
             for dir in ${!lvinfo[*]}
             do
-		echo "Starting backup of /${dir}\n"
+		echo "\nStarting backup of /${dir}\n"
 		create_snap ${dir}
 		${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
-		echo "Completed backup of /${dir}\n"
+		echo "\nCompleted backup of /${dir}\n"
             done
-	    echo "Starting cleanup of snapshots\n"
+	    echo "\nStarting cleanup of snapshots\n"
 	    cleanup
-	    if [[ ! -Z ${MAILTO} ]]
+	    if [[ -n ${MAILTO} ]]
 	    then
 	        mail -s "Backup Report for $(hostname) on $(date)" ${MAILTO} < ${LOG}
 	    fi
