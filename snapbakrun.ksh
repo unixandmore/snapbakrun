@@ -1,16 +1,14 @@
-#!/bin/ksh93
+#!/usr/bin/ksh93
 #set -x
 #set -e
 
-
+ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
 DATE=$(date +%Y'-'%m'-'%d)
 LOG=/tmp/snapbakrun_${DATE}.out
-#exec 2>${LOG}
-
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
-MKSYSB=false
 DIRLIST=${DIRLIST:-"met page data home"}
+MAILTO=${MAILTO}
 set -A DIRS $(echo "${DIRLIST}")
 sed="/usr/linux/bin/sed"
 tar="/usr/linux/bin/tar"
@@ -21,18 +19,38 @@ lslv="/usr/sbin/lslv"
 mksysb="/usr/bin/mksysb"
 rsync="/usr/bin/rsync"
 
+VERSION="1.1"
+
+if [[ -e "$ENV_SETUP" ]]
+then
+	. ${ENV_SETUP}
+fi
+
+print_info()
+{
+	print -u 2 ""
+	print -u 2 "# Program..........: ${0}"
+	print -u 2 "# Version..........: ${VERSION}"
+	print -u 2 "# Log..............: ${LOG}"
+	print -u 2 "# Backup Dir.......: ${BACKUP_DIR}"
+	print -u 2 "# Snap Dir.........: ${SNAPDIR}"
+	print -u 2 "# Directory List...: ${DIRLIST}"
+	print -u 2 "# Mail To..........: ${MAILTO}"
+	print -u 2 ""
+}
+
 log_info()
 {
         LEVEL=INFO
         MSG=$1
-        echo "$(date +%Y'/'%m'/'%d' '%T' ['%s']') ${MSG}" | tee -a ${LOG}
+        echo "$(date +%Y'/'%m'/'%d' '%T' ') [${LEVEL}]: ${MSG}" | tee -a ${LOG}
 }
 
 log_error()
 {
         LEVEL=ERROR
         MSG=$1
-        echo "$(date +%Y'/'%m'/'%d' '%T' ['%s']') ${LEVEL}: ${MSG}" | tee -a ${LOG}
+        echo "$(date +%Y'/'%m'/'%d' '%T' ') [${LEVEL}]: ${MSG}" | tee -a ${LOG}
 }
 
 ##################################################
@@ -82,8 +100,6 @@ lvinfo()
         then
             log_info "${SNAPDIR}/${dir} mount point does not exist - creating"
             mkdir -m 777 -p ${SNAPDIR}/${dir}
-        else
-            log_info "${SNAPDIR}/${dir} mount point exists \n"
         fi
 
         lv_snap_mb=$(df -tm|grep /"${dir}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
@@ -135,7 +151,7 @@ cleanall()
     SNAP_RC=$(echo $?)
     if [[ ${SNAP_RC} -eq 0 ]]
     then
-        log_info "Nothing to clean up for ${dir}\n"
+        log_info "Nothing to clean up for ${dir}"
     else
         snaplv=$(snapshot -q /${dir} | grep "^*" |awk '{print $2}')
         typeset -i DF_RC=0
@@ -181,12 +197,12 @@ create_snap()
     typeset -i snap_vg_pp_size="${vginfo[${snap_vg}].pp_size}"
     typeset -i snap_vg_pp_free="${vginfo[${snap_vg}].pp_free}"
     #Check available space
-    log_info "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size}" 
+    #log_info "snap_fs: ${snap_fs} snap_size: ${snap_size} snap_pp: ${snap_pp} snap_vg: ${snap_vg} snap_vg_pp_size: ${snap_vg_pp_size} snap_vg_pp_free: ${snap_vg_pp_free} snap_size_mb: ${snap_size}" 
     (( snap_pp = ${snap_size} / ${vginfo[${lv_vg}].pp_size} + 1  ))
 
     if [[ ${snap_pp} -lt ${snap_vg_pp_free} ]]
     then
-        log_info "There are enough free PPs in ${snap_vg} to create snapshot"
+        #log_info "There are enough free PPs in ${snap_vg} to create snapshot"
         snap_lv=$(snapshot -o snapfrom=${snap_fs} -o size=${snap_size}M)
         if [[ -n ${snap_lv} ]]
         then
@@ -209,7 +225,7 @@ create_snap()
         return 1
     fi
 }
-        
+
 usage()
 {
     echo "snapbakrun.ksh -c -s"
@@ -224,15 +240,25 @@ do
             typeset snap
             for dir in ${!lvinfo[*]}
             do
+		echo "\nStarting backup of /${dir}\n"
 		create_snap ${dir}
-		${rsync} -aru --delete --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
+		${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
+		echo "\nCompleted backup of /${dir}\n"
             done
+	    echo "\nStarting cleanup of snapshots\n"
 	    cleanup
+	    if [[ -n ${MAILTO} ]]
+	    then
+	        mail -s "Backup Report for $(hostname) on $(date)" ${MAILTO} < ${LOG}
+	    fi
             ;;
         -c)
             setup
             cleanup
             ;;
+	-v)
+	    print_info
+	    ;;
         -*)
             usage
             exit 1
