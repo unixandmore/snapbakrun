@@ -28,6 +28,17 @@ mknfsmnt -f /mnt/backup -d 'remote filesystem' -h 'hostname'
 
 # Configuration
 
+## Create a custom configuration file
+
+- Create `/usr/local/etc/snapbakrun/env_setup` in the following format:
+
+```
+export DIRLIST="dir1 dir2 dir3"
+export MAILTO="user1@domain.com,user2@domain.com"
+```
+
+
+
 ## Modify the following variables for the target system
 
 - **LOG**: Defaults to /tmp/snapbakrun_`DATE`.out
