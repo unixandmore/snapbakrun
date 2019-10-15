@@ -211,18 +211,18 @@ create_snap()
             if [[ $(mount -v jfs2 -o snapshot ${snap_lv} ${SNAPDIR}${snap_fs}) -ne 0 ]]
             then
                 log_error "Failed to mount ${SNAPDIR}${snap_fs} on ${snap_lv}"
-                return 1
+                exit 1
             else
                 log_info "Mounted ${SNAPDIR}${snap_fs} on ${snap_lv}"
                 return 0
             fi
         else
             log_error "Failed to create snapshot for ${snap_fs}"
-            return 1
+            exit 1
         fi
     else
         log_error "Not enough free PPs in ${snap_vg} to create snapshot of ${snap_fs} snap_pp: ${snap_pp} snap_vg_pp_free: ${snap_vg_pp_free}"
-        return 1
+        exit 1
     fi
 }
 
