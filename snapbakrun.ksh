@@ -2,7 +2,7 @@
 #set -x
 #set -e
 
-
+ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
 DATE=$(date +%Y'-'%m'-'%d)
 LOG=/tmp/snapbakrun_${DATE}.out
 SNAPDIR=${SNAPDIR:-/snapshot}
@@ -18,6 +18,26 @@ lspv="/usr/sbin/lspv"
 lslv="/usr/sbin/lslv"
 mksysb="/usr/bin/mksysb"
 rsync="/usr/bin/rsync"
+
+VERSION="1.1"
+
+if [[ -e "$ENV_SETUP" ]]
+then
+	. ${ENV_SETUP}
+fi
+
+print_info()
+{
+	print -u 2 ""
+	print -u 2 "# Program..........: ${0}"
+	print -u 2 "# Version..........: ${VERSION}"
+	print -u 2 "# Log..............: ${LOG}"
+	print -u 2 "# Backup Dir.......: ${BACKUP_DIR}"
+	print -u 2 "# Snap Dir.........: ${SNAPDIR}"
+	print -u 2 "# Directory List...: ${DIRLIST}"
+	print -u 2 "# Mail To..........: ${MAILTO}"
+	print -u 2 ""
+}
 
 log_info()
 {
@@ -236,6 +256,9 @@ do
             setup
             cleanup
             ;;
+	-v)
+	    print_info
+	    ;;
         -*)
             usage
             exit 1
