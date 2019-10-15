@@ -28,15 +28,15 @@ fi
 
 print_info()
 {
-	print -u 2 ""
-	print -u 2 "# Program..........: ${0}"
-	print -u 2 "# Version..........: ${VERSION}"
-	print -u 2 "# Log..............: ${LOG}"
-	print -u 2 "# Backup Dir.......: ${BACKUP_DIR}"
-	print -u 2 "# Snap Dir.........: ${SNAPDIR}"
-	print -u 2 "# Directory List...: ${DIRLIST}"
-	print -u 2 "# Mail To..........: ${MAILTO}"
-	print -u 2 ""
+	print  ""
+	print  "# Program..........: ${0}"
+	print  "# Version..........: ${VERSION}"
+	print  "# Log..............: ${LOG}"
+	print  "# Backup Dir.......: ${BACKUP_DIR}"
+	print  "# Snap Dir.........: ${SNAPDIR}"
+	print  "# Directory List...: ${DIRLIST}"
+	print  "# Mail To..........: ${MAILTO}"
+	print  ""
 }
 
 log_info()
