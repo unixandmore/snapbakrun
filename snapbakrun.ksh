@@ -4,11 +4,12 @@
 
 ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
 DATE=$(date +%Y'-'%m'-'%d)
-LOG=/tmp/snapbakrun_${DATE}.out
-MAILLOG=/tmp/snapbakrun_${DATE}.eml
+RSYNCLOG=/tmp/snapbakrun.out
+LOG=/tmp/snapbakrun.log
+MAILLOG=/tmp/snapbakrun.eml
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
-DIRLIST=${DIRLIST:-"met home"}
+DIRLIST=${DIRLIST}
 MAILTO=${MAILTO}
 set -A DIRS $(echo "${DIRLIST}")
 sed="/usr/linux/bin/sed"
@@ -47,7 +48,7 @@ mailhdr()
 	echo "Backup Report for: $(hostname) on $(date)" >> ${MAILLOG}
 	echo "-----------------------------------------------------------------------" >> ${MAILLOG}
 	echo "                                         " >> ${MAILLOG}
-	echo "Full backup log in: ${LOG}               " >> ${MAILLOG}
+	echo "Full list of files rsynced in: ${RSYNCLOG} " >> ${MAILLOG}
 }
 
 log_info()
@@ -289,7 +290,7 @@ do
             do
                 echo "\nStarting backup of /${dir}\n" | tee -a ${MAILLOG}
                 create_snap ${dir}
-                num_files=$( ${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
+                num_files=$( ${rsync} -aru --delete --stats --log-file=${RSYNCLOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
                 echo "Completed backup of /${dir}, backed up: ${num_files} files\n" | tee -a ${MAILLOG}
 		remove_snap ${dir}
             done
