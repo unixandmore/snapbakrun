@@ -40,6 +40,15 @@ print_info()
 	echo  ""
 }
 
+mailhdr()
+{
+
+	echo "-----------------------------------------\n" | tee ${MAILLOG}
+	echo "Backup Report for: $(hostname) on ${DATE}\n" | tee -a ${MAILLOG}
+	echo "-----------------------------------------\n" | tee -a ${MAILLOG}
+	echo "                                         \n" | tee -a ${MAILLOG}
+}
+
 log_info()
 {
         LEVEL=INFO
@@ -228,12 +237,50 @@ create_snap()
 }
 
 
+remove_snap()
+{
+    trap '' 1 2 15
+    typeset dir=$1
+    typeset SNAP_RC
+    snapshot -q /"${dir}"| grep -q "has no snapshots"
+    SNAP_RC=$(echo $?)
+    if [[ ${SNAP_RC} -eq 0 ]]
+    then
+        log_info "Nothing to clean up for ${dir}"
+    else
+        snaplv=$(snapshot -q /${dir} | grep "^*" |awk '{print $2}')
+        typeset -i DF_RC=0
+        df | grep "${snaplv}" > /dev/null 2>&1
+        DF_RC=$(echo $?)
+        if [[ ${DF_RC} -eq 0 ]]
+        then
+            typeset snap_mount=$(df | grep ${snaplv}| awk '{print $7}')
+            unmount ${snap_mount}
+        fi
+        if [[ $(snapshot -d ${snaplv} > /dev/null 2>&1) -ne 0 ]]
+        then
+            log_error "Error removing the snapshot for /${dir} - Manual intervention required"
+        else
+           log_info "Removed the snapshot for /${dir}" 
+        fi
+    fi
+}
+
 
 usage()
 {
     echo "snapbakrun.ksh -c -s"
 
 }
+
+
+main()
+{
+
+
+}
+
+
 
 while [ $# -gt 0 ]
 do
