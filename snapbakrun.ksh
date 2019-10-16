@@ -8,7 +8,7 @@ LOG=/tmp/snapbakrun_${DATE}.out
 MAILLOG=/tmp/snapbakrun_${DATE}.eml
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
-DIRLIST=${DIRLIST:-"met page data home"}
+DIRLIST=${DIRLIST:-"met home"}
 MAILTO=${MAILTO}
 set -A DIRS $(echo "${DIRLIST}")
 sed="/usr/linux/bin/sed"
@@ -29,24 +29,25 @@ fi
 
 print_info()
 {
-	echo  ""
-	echo  "# Program..........: ${0}"
-	echo  "# Version..........: ${VERSION}"
-	echo  "# Log..............: ${LOG}"
-	echo  "# Backup Dir.......: ${BACKUP_DIR}"
-	echo  "# Snap Dir.........: ${SNAPDIR}"
-	echo  "# Directory List...: ${DIRLIST}"
-	echo  "# Mail To..........: ${MAILTO}"
-	echo  ""
+	print -u 2  ""
+	print -u 2  "# Program..........: ${0}"
+	print -u 2  "# Version..........: ${VERSION}"
+	print -u 2  "# Log..............: ${LOG}"
+	print -u 2  "# Backup Dir.......: ${BACKUP_DIR}"
+	print -u 2  "# Snap Dir.........: ${SNAPDIR}"
+	print -u 2  "# Directory List...: ${DIRLIST}"
+	print -u 2  "# Mail To..........: ${MAILTO}"
+	print -u 2  ""
 }
 
 mailhdr()
 {
 
-	echo "-----------------------------------------\n" | tee ${MAILLOG}
-	echo "Backup Report for: $(hostname) on ${DATE}\n" | tee -a ${MAILLOG}
-	echo "-----------------------------------------\n" | tee -a ${MAILLOG}
-	echo "                                         \n" | tee -a ${MAILLOG}
+	echo "-----------------------------------------------------------------------" > ${MAILLOG}
+	echo "Backup Report for: $(hostname) on $(date)" >> ${MAILLOG}
+	echo "-----------------------------------------------------------------------" >> ${MAILLOG}
+	echo "                                         " >> ${MAILLOG}
+	echo "Full backup log in: ${LOG}               " >> ${MAILLOG}
 }
 
 log_info()
@@ -221,18 +222,18 @@ create_snap()
             if [[ $(mount -v jfs2 -o snapshot ${snap_lv} ${SNAPDIR}${snap_fs}) -ne 0 ]]
             then
                 log_error "Failed to mount ${SNAPDIR}${snap_fs} on ${snap_lv}"
-                exit 1
+                return 1
             else
                 log_info "Mounted ${SNAPDIR}${snap_fs} on ${snap_lv}"
                 return 0
             fi
         else
             log_error "Failed to create snapshot for ${snap_fs}"
-            exit 1
+            return 1
         fi
     else
         log_error "Not enough free PPs in ${snap_vg} to create snapshot of ${snap_fs} snap_pp: ${snap_pp} snap_vg_pp_free: ${snap_vg_pp_free}"
-        exit 1
+        return 1
     fi
 }
 
@@ -256,12 +257,15 @@ remove_snap()
         then
             typeset snap_mount=$(df | grep ${snaplv}| awk '{print $7}')
             unmount ${snap_mount}
+	    return 0
         fi
         if [[ $(snapshot -d ${snaplv} > /dev/null 2>&1) -ne 0 ]]
         then
             log_error "Error removing the snapshot for /${dir} - Manual intervention required"
+	    return 1
         else
            log_info "Removed the snapshot for /${dir}" 
+	   return 0
         fi
     fi
 }
@@ -274,31 +278,21 @@ usage()
 }
 
 
-main()
-{
-
-
-}
-
-
-
 while [ $# -gt 0 ]
 do
     case "$1" in 
         -s) 
-            print_info > ${MAILLOG}
+	    mailhdr
             setup
             typeset snap
             for dir in ${!lvinfo[*]}
             do
-                echo "\nStarting backup of /${dir}\n"
+                echo "\nStarting backup of /${dir}\n" | tee -a ${MAILLOG}
                 create_snap ${dir}
                 num_files=$( ${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
-                echo "\nCompleted backup of /${dir}\n"
-                echo "Completed backup of ${dir}, backed up: ${num_files} files\n" | tee -a ${MAILLOG}
+                echo "Completed backup of /${dir}, backed up: ${num_files} files\n" | tee -a ${MAILLOG}
+		remove_snap ${dir}
             done
-            echo "\nStarting cleanup of snapshots\n"
-            cleanup
             echo "Backup copmpleted\n"| tee -a ${MAILLOG}
             if [[ -n ${MAILTO} ]]
             then
