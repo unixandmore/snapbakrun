@@ -5,9 +5,10 @@
 ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
 DATE=$(date +%Y'-'%m'-'%d)
 LOG=/tmp/snapbakrun_${DATE}.out
+MAILLOG=/tmp/snapbakrun_${DATE}.eml
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
-DIRLIST=${DIRLIST:-"met page data home"}
+DIRLIST=${DIRLIST:-"met home"}
 MAILTO=${MAILTO}
 set -A DIRS $(echo "${DIRLIST}")
 sed="/usr/linux/bin/sed"
@@ -28,15 +29,25 @@ fi
 
 print_info()
 {
-	print  ""
-	print  "# Program..........: ${0}"
-	print  "# Version..........: ${VERSION}"
-	print  "# Log..............: ${LOG}"
-	print  "# Backup Dir.......: ${BACKUP_DIR}"
-	print  "# Snap Dir.........: ${SNAPDIR}"
-	print  "# Directory List...: ${DIRLIST}"
-	print  "# Mail To..........: ${MAILTO}"
-	print  ""
+	print -u 2  ""
+	print -u 2  "# Program..........: ${0}"
+	print -u 2  "# Version..........: ${VERSION}"
+	print -u 2  "# Log..............: ${LOG}"
+	print -u 2  "# Backup Dir.......: ${BACKUP_DIR}"
+	print -u 2  "# Snap Dir.........: ${SNAPDIR}"
+	print -u 2  "# Directory List...: ${DIRLIST}"
+	print -u 2  "# Mail To..........: ${MAILTO}"
+	print -u 2  ""
+}
+
+mailhdr()
+{
+
+	echo "-----------------------------------------------------------------------" > ${MAILLOG}
+	echo "Backup Report for: $(hostname) on $(date)" >> ${MAILLOG}
+	echo "-----------------------------------------------------------------------" >> ${MAILLOG}
+	echo "                                         " >> ${MAILLOG}
+	echo "Full backup log in: ${LOG}               " >> ${MAILLOG}
 }
 
 log_info()
@@ -226,31 +237,67 @@ create_snap()
     fi
 }
 
+
+remove_snap()
+{
+    trap '' 1 2 15
+    typeset dir=$1
+    typeset SNAP_RC
+    snapshot -q /"${dir}"| grep -q "has no snapshots"
+    SNAP_RC=$(echo $?)
+    if [[ ${SNAP_RC} -eq 0 ]]
+    then
+        log_info "Nothing to clean up for ${dir}"
+    else
+        snaplv=$(snapshot -q /${dir} | grep "^*" |awk '{print $2}')
+        typeset -i DF_RC=0
+        df | grep "${snaplv}" > /dev/null 2>&1
+        DF_RC=$(echo $?)
+        if [[ ${DF_RC} -eq 0 ]]
+        then
+            typeset snap_mount=$(df | grep ${snaplv}| awk '{print $7}')
+            unmount ${snap_mount}
+	    return 0
+        fi
+        if [[ $(snapshot -d ${snaplv} > /dev/null 2>&1) -ne 0 ]]
+        then
+            log_error "Error removing the snapshot for /${dir} - Manual intervention required"
+	    return 1
+        else
+           log_info "Removed the snapshot for /${dir}" 
+	   return 0
+        fi
+    fi
+}
+
+
 usage()
 {
     echo "snapbakrun.ksh -c -s"
 
 }
 
+
 while [ $# -gt 0 ]
 do
     case "$1" in 
         -s) 
+	    mailhdr
             setup
             typeset snap
             for dir in ${!lvinfo[*]}
             do
-		echo "\nStarting backup of /${dir}\n"
-		create_snap ${dir}
-		${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
-		echo "\nCompleted backup of /${dir}\n"
+                echo "\nStarting backup of /${dir}\n" | tee -a ${MAILLOG}
+                create_snap ${dir}
+                num_files=$( ${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
+                echo "Completed backup of /${dir}, backed up: ${num_files} files\n" | tee -a ${MAILLOG}
+		remove_snap ${dir}
             done
-	    echo "\nStarting cleanup of snapshots\n"
-	    cleanup
-	    if [[ -n ${MAILTO} ]]
-	    then
-	        mail -s "Backup Report for $(hostname) on $(date)" ${MAILTO} < ${LOG}
-	    fi
+            echo "Backup copmpleted\n"| tee -a ${MAILLOG}
+            if [[ -n ${MAILTO} ]]
+            then
+                mail -s "Backup Report for $(hostname) on $(date)" ${MAILTO} < ${MAILLOG}
+            fi
             ;;
         -c)
             setup
