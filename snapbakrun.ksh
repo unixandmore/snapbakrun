@@ -2,29 +2,35 @@
 #set -x
 #set -e
 
-ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
-DATE=$(date +%Y'-'%m'-'%d)
-LOG=/tmp/snapbakrun_${DATE}.out
-MAILLOG=/tmp/snapbakrun_${DATE}.eml
-SNAPDIR=${SNAPDIR:-/snapshot}
-BACKUP_DIR=${BACKUP_DIR:-/backup}
-DIRLIST=${DIRLIST:-"met home"}
-MAILTO=${MAILTO}
-set -A DIRS $(echo "${DIRLIST}")
-sed="/usr/linux/bin/sed"
-tar="/usr/linux/bin/tar"
-udfcreate="/usr/bin/udfcreate"
-lsvg="/usr/sbin/lsvg"
-lspv="/usr/sbin/lspv"
-lslv="/usr/sbin/lslv"
-mksysb="/usr/bin/mksysb"
-rsync="/usr/bin/rsync"
-
-VERSION="1.1"
+typeset ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
+typeset DATE=$(date +%Y'-'%m'-'%d)
+typeset RSYNCLOG=/tmp/snapbakrun.out
+typeset LOG=/tmp/snapbakrun.log
+typeset MAILLOG=/tmp/snapbakrun.eml
+typeset SNAPDIR=${SNAPDIR:-/snapshot}
+typeset BACKUP_DIR=${BACKUP_DIR:-/backup}
+typeset sed="/usr/linux/bin/sed"
+typeset tar="/usr/linux/bin/tar"
+typeset udfcreate="/usr/bin/udfcreate"
+typeset lsvg="/usr/sbin/lsvg"
+typeset lspv="/usr/sbin/lspv"
+typeset lslv="/usr/sbin/lslv"
+typeset mksysb="/usr/bin/mksysb"
+typeset rsync="/usr/bin/rsync"
+typeset VERSION="1.2"
 
 if [[ -e "$ENV_SETUP" ]]
 then
-	. ${ENV_SETUP}
+	. $ENV_SETUP
+	set -A DIRS $(echo "${DIRLIST}")
+fi
+
+if [[ -n "$DIRLIST" ]] && [[ ! "${#DIRS[@]}" -eq 0 ]]
+then
+	 set -A DIRS $(echo "${DIRLIST}")
+else
+	print -u 2 "ERROR: Missing required list of directories to back up"
+	return 1
 fi
 
 print_info()
@@ -47,7 +53,7 @@ mailhdr()
 	echo "Backup Report for: $(hostname) on $(date)" >> ${MAILLOG}
 	echo "-----------------------------------------------------------------------" >> ${MAILLOG}
 	echo "                                         " >> ${MAILLOG}
-	echo "Full backup log in: ${LOG}               " >> ${MAILLOG}
+	echo "Full list of files rsynced in: ${RSYNCLOG} " >> ${MAILLOG}
 }
 
 log_info()
@@ -137,51 +143,6 @@ setup()
 	lvinfo
 }
 
-cleanup()
-{
-    trap '' 1 2 15
-    typeset dir
-    if [[ $# -eq 1 ]]
-    then
-        dir=$1
-        cleanall ${dir}
-    else
-        for dir in ${!lvinfo[*]}
-        do
-            cleanall ${dir}
-        done
-    fi
-}
-
-cleanall()
-{
-    trap '' 1 2 15
-    typeset dir=$1
-    typeset SNAP_RC
-    snapshot -q /"${dir}"| grep -q "has no snapshots"
-    SNAP_RC=$(echo $?)
-    if [[ ${SNAP_RC} -eq 0 ]]
-    then
-        log_info "Nothing to clean up for ${dir}"
-    else
-        snaplv=$(snapshot -q /${dir} | grep "^*" |awk '{print $2}')
-        typeset -i DF_RC=0
-        df | grep "${snaplv}" > /dev/null 2>&1
-        DF_RC=$(echo $?)
-        if [[ ${DF_RC} -eq 0 ]]
-        then
-            typeset snap_mount=$(df | grep ${snaplv}| awk '{print $7}')
-            unmount ${snap_mount}
-        fi
-        if [[ $(snapshot -d ${snaplv} > /dev/null 2>&1) -ne 0 ]]
-        then
-            log_error "Error removing the snapshot for /${dir} - Manual intervention required"
-        else
-           log_info "Removed the snapshot for /${dir}" 
-        fi
-    fi
-}
-
 ###################################################
 ## Create the snapshot lv
 ## Globals:
@@ -189,15 +150,9 @@ cleanall()
 ## Arguments:
 ##   Expects the file system path: 
 ## Returns:
-##   The name of the logical volume snapshot
+##   snap_lv The name of the logical volume snapshot
 ###################################################
-##       vginfo[vgname].pp_size
-##       vginfo[vgname].pp_free
-##       lvinfo[dir].lv_name - Logical volume name 
-##       lvinfo[dir].lv_lps - Logical partitions
-##       lvinfo[dir].lv_pps - physical partitions
-##       lvinfo[dir].lv_mirrored - true/false
-##       lvinfo[dir].lv_snap_mb - amount in MB of space needed to create a snap
+
 create_snap()
 {
     trap 'cleanup' 1 2 15
@@ -257,7 +212,6 @@ remove_snap()
         then
             typeset snap_mount=$(df | grep ${snaplv}| awk '{print $7}')
             unmount ${snap_mount}
-	    return 0
         fi
         if [[ $(snapshot -d ${snaplv} > /dev/null 2>&1) -ne 0 ]]
         then
@@ -289,7 +243,7 @@ do
             do
                 echo "\nStarting backup of /${dir}\n" | tee -a ${MAILLOG}
                 create_snap ${dir}
-                num_files=$( ${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
+                num_files=$( ${rsync} -aru --delete --stats --log-file=${RSYNCLOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
                 echo "Completed backup of /${dir}, backed up: ${num_files} files\n" | tee -a ${MAILLOG}
 		remove_snap ${dir}
             done
