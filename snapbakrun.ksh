@@ -2,30 +2,27 @@
 #set -x
 #set -e
 
-ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
-DATE=$(date +%Y'-'%m'-'%d)
-RSYNCLOG=/tmp/snapbakrun.out
-LOG=/tmp/snapbakrun.log
-MAILLOG=/tmp/snapbakrun.eml
-SNAPDIR=${SNAPDIR:-/snapshot}
-BACKUP_DIR=${BACKUP_DIR:-/backup}
-DIRLIST=${DIRLIST}
-MAILTO=${MAILTO}
-set -A DIRS $(echo "${DIRLIST}")
-sed="/usr/linux/bin/sed"
-tar="/usr/linux/bin/tar"
-udfcreate="/usr/bin/udfcreate"
-lsvg="/usr/sbin/lsvg"
-lspv="/usr/sbin/lspv"
-lslv="/usr/sbin/lslv"
-mksysb="/usr/bin/mksysb"
-rsync="/usr/bin/rsync"
-
-VERSION="1.1"
+typeset ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
+typeset DATE=$(date +%Y'-'%m'-'%d)
+typeset RSYNCLOG=/tmp/snapbakrun.out
+typeset LOG=/tmp/snapbakrun.log
+typeset MAILLOG=/tmp/snapbakrun.eml
+typeset SNAPDIR=${SNAPDIR:-/snapshot}
+typeset BACKUP_DIR=${BACKUP_DIR:-/backup}
+typeset sed="/usr/linux/bin/sed"
+typeset tar="/usr/linux/bin/tar"
+typeset udfcreate="/usr/bin/udfcreate"
+typeset lsvg="/usr/sbin/lsvg"
+typeset lspv="/usr/sbin/lspv"
+typeset lslv="/usr/sbin/lslv"
+typeset mksysb="/usr/bin/mksysb"
+typeset rsync="/usr/bin/rsync"
+typeset VERSION="1.2"
 
 if [[ -e "$ENV_SETUP" ]]
 then
-	. ${ENV_SETUP}
+	. $ENV_SETUP
+	set -A DIRS $(echo "${DIRLIST}")
 fi
 
 print_info()
