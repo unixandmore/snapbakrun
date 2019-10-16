@@ -5,6 +5,7 @@
 ENV_SETUP="/usr/local/etc/snapbakrun/env_setup"
 DATE=$(date +%Y'-'%m'-'%d)
 LOG=/tmp/snapbakrun_${DATE}.out
+MAILLOG=/tmp/snapbakrun_${DATE}.eml
 SNAPDIR=${SNAPDIR:-/snapshot}
 BACKUP_DIR=${BACKUP_DIR:-/backup}
 DIRLIST=${DIRLIST:-"met page data home"}
@@ -28,15 +29,15 @@ fi
 
 print_info()
 {
-	print  ""
-	print  "# Program..........: ${0}"
-	print  "# Version..........: ${VERSION}"
-	print  "# Log..............: ${LOG}"
-	print  "# Backup Dir.......: ${BACKUP_DIR}"
-	print  "# Snap Dir.........: ${SNAPDIR}"
-	print  "# Directory List...: ${DIRLIST}"
-	print  "# Mail To..........: ${MAILTO}"
-	print  ""
+	echo  ""
+	echo  "# Program..........: ${0}"
+	echo  "# Version..........: ${VERSION}"
+	echo  "# Log..............: ${LOG}"
+	echo  "# Backup Dir.......: ${BACKUP_DIR}"
+	echo  "# Snap Dir.........: ${SNAPDIR}"
+	echo  "# Directory List...: ${DIRLIST}"
+	echo  "# Mail To..........: ${MAILTO}"
+	echo  ""
 }
 
 log_info()
@@ -226,6 +227,8 @@ create_snap()
     fi
 }
 
+
+
 usage()
 {
     echo "snapbakrun.ksh -c -s"
@@ -236,21 +239,24 @@ while [ $# -gt 0 ]
 do
     case "$1" in 
         -s) 
+            print_info > ${MAILLOG}
             setup
             typeset snap
             for dir in ${!lvinfo[*]}
             do
-		echo "\nStarting backup of /${dir}\n"
-		create_snap ${dir}
-		${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/ 
-		echo "\nCompleted backup of /${dir}\n"
+                echo "\nStarting backup of /${dir}\n"
+                create_snap ${dir}
+                num_files=$( ${rsync} -aru --delete --stats --log-file=${LOG} ${SNAPDIR}/${dir}/ ${BACKUP_DIR}/${dir}/| awk '/Number of regular files transferred:/{print $NF}')
+                echo "\nCompleted backup of /${dir}\n"
+                echo "Completed backup of ${dir}, backed up: ${num_files} files\n" | tee -a ${MAILLOG}
             done
-	    echo "\nStarting cleanup of snapshots\n"
-	    cleanup
-	    if [[ -n ${MAILTO} ]]
-	    then
-	        mail -s "Backup Report for $(hostname) on $(date)" ${MAILTO} < ${LOG}
-	    fi
+            echo "\nStarting cleanup of snapshots\n"
+            cleanup
+            echo "Backup copmpleted\n"| tee -a ${MAILLOG}
+            if [[ -n ${MAILTO} ]]
+            then
+                mail -s "Backup Report for $(hostname) on $(date)" ${MAILTO} < ${MAILLOG}
+            fi
             ;;
         -c)
             setup
