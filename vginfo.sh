@@ -12,6 +12,8 @@ Usage: ${1##*/} [-?vV]
   Where:
     -v = Verbose mode - displays vginfo function info
     -V = Very Verbose Mode - debug output displayed
+    -d = Output colon delimited records
+    -k = Output ksh93 array
     -? = Help - display this message
 
 Author: Raymond L. Cox (rcox@unixandmore.com)
@@ -54,6 +56,9 @@ function vginfo {
   typeset FALSE="1"
   typeset VERBOSE="${FALSE}"
   typeset VERYVERB="${FALSE}"
+  typeset KORNOUT="${FALSE}"
+  typeset DATAOUT="${FALSE}"
+  typeset -L1 D=":"
 
 #### Process the command line options and arguments.
 
@@ -62,6 +67,8 @@ function vginfo {
       case "${OPTION}" in
           'v') VERBOSE="${TRUE}";;
           'V') VERYVERB="${TRUE}";;
+          'd') DATAOUT="${TRUE}";;
+          'k') KORNOUT="${TRUE}";;
           '?') vginfo "${0}" && return 1 ;;
           ':') vginfo "${0}" && return 2 ;;
           '#') NAME "${0}" && return 3 ;;
@@ -71,6 +78,12 @@ function vginfo {
   shift $(( ${OPTIND} - 1 ))
   
   trap "usagemsg_vginfo ${0}" EXIT
+
+  if (( KORNOUT == FALSE )) && (( DATAOUT == FALSE ))
+  then
+      KORNOUT="${TRUE}"
+  fi
+
 
   trap "-" EXIT
   
@@ -83,20 +96,17 @@ function vginfo {
 
 
   (( VERBOSE  == TRUE )) && print -u 2 "# MSG Variable Value: ${MSG}"
-  print -- "${MSG}"
 
   for vg in $( lsvg )
   do
       pp_size=$(lsvg ${vg} | grep "PP SIZE" | awk 'BEGIN{FS=":"} {print$3}' | awk 'BEGIN{FS=" "} {print $1}')
       pp_free=$(lsvg ${vg} | grep "FREE PP" | awk 'BEGIN{FS=":"} {print $3}'| awk 'BEGIN{FS=" "} {print $1}')
-      vginfo+=( ["${vg}"]=(pp_size="${pp_size}" pp_free="${pp_free}"))
+      VGINF+=( ["${vg}"]=(pp_size="${pp_size}" pp_free="${pp_free}"))
   done
 
-  eval ARY="( \${!vginfo[@]} )"
-  for IDX in "${ARY[@]}"
+  for IDX in "${!VGINF[@]}"
   do
-      (( VERBOSE  == TRUE )) && print -u 2 "# VG:pp_size........: ${IDX}:${vginfo[$IDX].pp_size}"
-      (( VERBOSE  == TRUE )) && print -u 2 "# VG:pp_free...........: ${IDX}:${vginfo[$IDX].pp_free}"
+      (( KORNOUT == TRUE )) && print "${IDX}=(${VGINF[$IDX].pp_size}:${VGINF[$IDX].pp_free})"
   done
 
   trap "-" HUP
