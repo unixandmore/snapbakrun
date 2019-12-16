@@ -1,3 +1,4 @@
+#!/usr/bin/ksh93
 ################################################################
 function usagemsg_create_snap {
   print "
@@ -90,8 +91,12 @@ function create_snap {
         KORNOUT="${TRUE}"
       fi
 
+  unset VFLAG
   (( VERYVERB == TRUE )) && set -x
+  (( VERBOSE  == TRUE )) && typeset VFLAG="-v"
+  (( VERBOSE  == TRUE )) && print -u 2 "# Program...........: ${0}"
   (( VERBOSE  == TRUE )) && print -u 2 "# Version...........: ${VERSION}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# FILE_SYSTEM.......: ${FILE_SYSTEM}"
 
 
 ################################################################
@@ -106,7 +111,8 @@ function create_snap {
 #### become your function.
 #### 
 
-  LVINFO=( $( lvinfo -f ${FILE_SYSTEM} ) )
+  LVINFO=( $( lvinfo -f ${FILE_SYSTEM} ${VFLAG} ) )
+  (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO............: ${LVINFO[*]}"
 
   trap "-" HUP
 
@@ -206,6 +212,7 @@ function lvinfo {
       fi
 
   (( VERYVERB == TRUE )) && set -x
+  (( VERBOSE  == TRUE )) && print -u 2 "# Program...........: ${0}"
   (( VERBOSE  == TRUE )) && print -u 2 "# Version...........: ${VERSION}"
 
 
