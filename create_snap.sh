@@ -101,18 +101,10 @@ function create_snap {
 
 ################################################################
 
-####
-#### Your shell function should perform it's specfic work here.
-#### All work performed by your shell function should be coded
-#### within this section of the function.  This does not mean that
-#### your function should be called from here, it means the shell
-#### code that performs the work of your function should be 
-#### incorporated into the body of this function.  This should
-#### become your function.
-#### 
 
   LVINFO=( $( lvinfo -f ${FILE_SYSTEM} ${VFLAG} ) )
   (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO............: ${LVINFO[*]}"
+
 
   trap "-" HUP
 
@@ -212,6 +204,7 @@ function lvinfo {
       fi
 
   (( VERYVERB == TRUE )) && set -x
+  (( VERBOSE  == TRUE )) && typeset VFLAG="-v"
   (( VERBOSE  == TRUE )) && print -u 2 "# Program...........: ${0}"
   (( VERBOSE  == TRUE )) && print -u 2 "# Version...........: ${VERSION}"
 
@@ -223,6 +216,7 @@ function lvinfo {
       print -u 2 "Missing Filesystem (-f) option"
       return 1
   fi
+
 
   LV_SNAP_MB=$(df -tm|grep "${FILESYSTEM}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
   LV_NAME=$(lsfs "${FILESYSTEM}"| awk 'NR>1 {print $1}'| awk ' BEGIN{FS="/"} {print $3}')
@@ -245,6 +239,7 @@ function lvinfo {
             lv_mirrored="${LV_MIRRORED}" 
             lv_snap_mb="${LV_SNAP_MB}"
         )
+  VGINFO=( $( vginfo -g ${LVINFO.lv_vg} ${VFLAG} ) )
 
   (( VERBOSE  == TRUE )) && print -u 2 "# FILESYSTEM........: ${FILESYSTEM}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_SNAP_MB........: ${LV_SNAP_MB}"
@@ -317,16 +312,18 @@ function vginfo {
   typeset KORNOUT="${FALSE}"
   typeset DATAOUT="${FALSE}"
   typeset -L1 D=":"
+  typeset VG=""
 
 #### Process the command line options and arguments.
 
-  while getopts ":vV" OPTION
+  while getopts ":vVg:" OPTION
   do
       case "${OPTION}" in
           'v') VERBOSE="${TRUE}";;
           'V') VERYVERB="${TRUE}";;
           'd') DATAOUT="${TRUE}";;
           'k') KORNOUT="${TRUE}";;
+          'g') VG="${OPTARG}";;
           '?') vginfo "${0}" && return 1 ;;
           ':') vginfo "${0}" && return 2 ;;
           '#') NAME "${0}" && return 3 ;;
@@ -346,31 +343,17 @@ function vginfo {
   trap "-" EXIT
   
   (( VERYVERB == TRUE )) && set -x
+  (( VERBOSE  == TRUE )) && print -u 2 "# Program...........: ${0}"
   (( VERBOSE  == TRUE )) && print -u 2 "# Version...........: ${VERSION}"
 
-  MSG="${@}"
+  pp_size=$(lsvg ${VG} | grep "PP SIZE" | awk 'BEGIN{FS=":"} {print$3}' | awk 'BEGIN{FS=" "} {print $1}')
+  pp_free=$(lsvg ${VG} | grep "FREE PP" | awk 'BEGIN{FS=":"} {print $3}'| awk 'BEGIN{FS=" "} {print $1}')
+  VGINF=( pp_size="${pp_size}" pp_free="${pp_free}" )
 
-################################################################
+  (( VERBOSE == TRUE )) && print -u 2 "# pp_size...........: ${VGINF.pp_size}"
+  (( VERBOSE == TRUE )) && print -u 2 "# pp_free...........: ${VGINF.pp_free}"
 
-
-  (( VERBOSE  == TRUE )) && print -u 2 "# MSG Variable Value: ${MSG}"
-
-  for vg in $( lsvg )
-  do
-      pp_size=$(lsvg ${vg} | grep "PP SIZE" | awk 'BEGIN{FS=":"} {print$3}' | awk 'BEGIN{FS=" "} {print $1}')
-      pp_free=$(lsvg ${vg} | grep "FREE PP" | awk 'BEGIN{FS=":"} {print $3}'| awk 'BEGIN{FS=" "} {print $1}')
-      VGINF+=( ["${vg}"]=(pp_size="${pp_size}" pp_free="${pp_free}"))
-  done
-
-  (( VERBOSE == TRUE )) && print "# ${VGINF[*]}"
-
-  for IDX in "${!VGINF[@]}"
-  do
-      (( VERBOSE == TRUE )) && print "# IDX: ${IDX[*]}"
-      #(( KORNOUT == TRUE )) && print "${IDX}=(${VGINF[$IDX].pp_size}:${VGINF[$IDX].pp_free})"
-  done
-
-  (( KORNOUT == TRUE )) && print -- "${VGINF[@]}"
+  (( KORNOUT == TRUE )) && print -- "${VGINF[*]}"
 
   trap "-" HUP
 
