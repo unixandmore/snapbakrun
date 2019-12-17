@@ -4,8 +4,7 @@ function usagemsg_create_snap {
   print "
 Program: create_snap
 
-Place a brief description ( < 255 chars ) of your shell
-function here.
+Create a snapshot of a logical volume automatically sizing to the 10% available mark.
 
 Usage: ${1##*/} [-?vV] 
 
@@ -219,7 +218,11 @@ function lvinfo {
 
 
   LV_SNAP_MB=$(df -tm|grep "${FILESYSTEM}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
+
+  #####!!!!!!!!!!!!!!!Logic error!!!!!!!!!!!!!!!#######
   LV_NAME=$(lsfs "${FILESYSTEM}"| awk 'NR>1 {print $1}'| awk ' BEGIN{FS="/"} {print $3}')
+  #####!!!!!!!!!!!!!!!Logic error!!!!!!!!!!!!!!!#######
+
   LV_VG=$(lslv ${LV_NAME} | grep "VOLUME GROUP" | sed 's/  *//g'| awk 'BEGIN{FS=":"} {print $3}')
   LV_LP_PP=$(lslv ${LV_NAME}|grep "^LPs"|${sed} 's/  *//g'| ${sed} -r 's/(LPs:|PPs:)/ /g' | awk 'BEGIN{FS=" "} {print $1":"$2}')
   LV_LP=$(echo ${LV_LP_PP} | cut -d ':' -f1)
@@ -241,11 +244,14 @@ function lvinfo {
         )
   VGINFO=( $( vginfo -g ${LVINFO.lv_vg} ${VFLAG} ) )
 
+  (( SNAP_PP = ${LVINFO.lv_snap_mb} / ${VGINFO.pp_size} + 1 ))
+
   (( VERBOSE  == TRUE )) && print -u 2 "# FILESYSTEM........: ${FILESYSTEM}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_SNAP_MB........: ${LV_SNAP_MB}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_NAME...........: ${LV_NAME}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_VG.............: ${LV_VG}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_LP.............: ${LV_LP}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# SNAP_PP...........: ${SNAP_PP}"
   (( KORNOUT  == TRUE )) && print -- "${LVINFO[*]}"
 
   trap "-" HUP
