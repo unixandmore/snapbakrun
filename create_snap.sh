@@ -58,8 +58,6 @@ function create_snap {
   typeset KORNOUT="${FALSE}"
   typeset DATAOUT="${FALSE}"
   typeset -L1 D=":"
-  typeset -i snap_size=""
-  typeset snap_vg=""
   typeset VERBOSE="${FALSE}"
   typeset VERYVERB="${FALSE}"
 
@@ -101,8 +99,18 @@ function create_snap {
 ################################################################
 
 
-  LVINFO=( $( lvinfo -f ${FILE_SYSTEM} ${VFLAG} ) )
-  (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO............: ${LVINFO[*]}"
+  lvinfo -f ${FILE_SYSTEM} ${VFLAG} 
+  (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO............: ${LVINFO[@]}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO............: ${LVINFO[${FILE_SYSTEM}].lv_pps}"
+
+  ### .Make sure there is enough space to create the snap
+  
+  (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO[FILE_SYSTEM].lv_snap_mb............: ${LVINFO[${FILE_SYSTEM}].lv_snap_mb}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# LVINFO[FILE_SYSTEM].lv_vg_pp_size............: ${LVINFO[${FILE_SYSTEM}].lv_vg_pp_size}"
+  (( SNAP_PP = ${LVINFO[${FILE_SYSTEM}].lv_snap_mb} / ${LVINFO[${FILE_SYSTEM}].lv_vg_pp_size} + 1 ))
+  (( VERBOSE  == TRUE )) && print -u 2 "# SNAP_PP.......: ${SNAP_PP}"
+
+
 
 
   trap "-" HUP
@@ -217,11 +225,10 @@ function lvinfo {
   fi
 
   LV_NAME=$(lsfs "${FILESYSTEM}"| awk 'NR>1 {print $1}'| awk ' BEGIN{FS="/"} {print $3}')
-
   LV_SNAP_MB=$(df -tm|grep "${LV_NAME}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
-
-
   LV_VG=$(lslv ${LV_NAME} | grep "VOLUME GROUP" | sed 's/  *//g'| awk 'BEGIN{FS=":"} {print $3}')
+  LV_VG_PP_FREE=$(lsvg ${LV_VG} | grep "FREE PP" | awk 'BEGIN{FS=":"} {print $3}'| awk 'BEGIN{FS=" "} {print $1}')
+  LV_VG_PP_SIZE=$(lslv ${LV_NAME} | grep "PP SIZE" | awk 'BEGIN{FS=":"} {print$3}' | awk 'BEGIN{FS=" "} {print $1}')
   LV_LP_PP=$(lslv ${LV_NAME}|grep "^LPs"|${sed} 's/  *//g'| ${sed} -r 's/(LPs:|PPs:)/ /g' | awk 'BEGIN{FS=" "} {print $1":"$2}')
   LV_LP=$(echo ${LV_LP_PP} | cut -d ':' -f1)
   LV_PP=$(echo ${LV_LP_PP} | cut -d ':' -f2)
@@ -231,25 +238,32 @@ function lvinfo {
   else
       LV_MIRRORED="${TRUE}"
   fi
-  LVINFO+=( 
-            lv_fs_name="${FILESYSTEM}" 
-            lv_name="${LV_NAME}" 
-            lv_vg="${LV_VG}" 
-            lv_lps="${LV_LP}" 
-            lv_pps="${LV_PP}" 
-            lv_mirrored="${LV_MIRRORED}" 
-            lv_snap_mb="${LV_SNAP_MB}"
-        )
-  VGINFO=( $( vginfo -g ${LVINFO.lv_vg} ${VFLAG} ) )
-
-  (( SNAP_PP = ${LVINFO.lv_snap_mb} / ${VGINFO.pp_size} + 1 ))
-
   (( VERBOSE  == TRUE )) && print -u 2 "# FILESYSTEM........: ${FILESYSTEM}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_SNAP_MB........: ${LV_SNAP_MB}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_NAME...........: ${LV_NAME}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_VG.............: ${LV_VG}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# LV_VG_PP_FREE.....: ${LV_VG_PP_FREE}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# LV_VG_PP_SIZE.....: ${LV_VG_PP_SIZE}"
+  (( VERBOSE  == TRUE )) && print -u 2 "# LV_PP.............: ${LV_PP}"
   (( VERBOSE  == TRUE )) && print -u 2 "# LV_LP.............: ${LV_LP}"
-  (( VERBOSE  == TRUE )) && print -u 2 "# SNAP_PP...........: ${SNAP_PP}"
+  
+  LVINFO+=(["${FILESYSTEM}"]= 
+            (lv_fs_name="${FILESYSTEM}" 
+            lv_name="${LV_NAME}" 
+            lv_vg="${LV_VG}" 
+            lv_vg_pp_free="${LV_VG_PP_FREE}" 
+            lv_vg_pp_size="${LV_VG_PP_SIZE}" 
+            lv_lps="${LV_LP}" 
+            lv_pps="${LV_PP}" 
+            lv_mirrored="${LV_MIRRORED}" 
+            lv_snap_mb="${LV_SNAP_MB}")
+        )
+
+  #(( SNAP_PP = ${LV_SNAP_MB} / ${VGINFO[1]} + 1 ))
+  #(( VERBOSE  == TRUE )) && print -u 2 "# SNAP_PP...........: ${SNAP_PP}"
+
+  #LVINFO+=( lv_snap_pp="${SNAP_PP}" vg_avail_pp="${VGINFO.pp_free}" )
+
   (( KORNOUT  == TRUE )) && print -- "${LVINFO[*]}"
 
   trap "-" HUP
@@ -316,7 +330,7 @@ function vginfo {
   typeset KORNOUT="${FALSE}"
   typeset DATAOUT="${FALSE}"
   typeset -L1 D=":"
-  typeset VG=""
+  #typeset -A VGINF
 
 #### Process the command line options and arguments.
 
@@ -352,10 +366,12 @@ function vginfo {
 
   pp_size=$(lsvg ${VG} | grep "PP SIZE" | awk 'BEGIN{FS=":"} {print$3}' | awk 'BEGIN{FS=" "} {print $1}')
   pp_free=$(lsvg ${VG} | grep "FREE PP" | awk 'BEGIN{FS=":"} {print $3}'| awk 'BEGIN{FS=" "} {print $1}')
-  VGINF=( pp_size="${pp_size}" pp_free="${pp_free}" )
+  VGINF=(size="${pp_size}" free="${pp_free}")
+  #VGINF[size]="${pp_size}#"
+  #VGINF[free]="${pp_free}"
 
-  (( VERBOSE == TRUE )) && print -u 2 "# pp_size...........: ${VGINF.pp_size}"
-  (( VERBOSE == TRUE )) && print -u 2 "# pp_free...........: ${VGINF.pp_free}"
+  (( VERBOSE == TRUE )) && print -u 2 "# pp_size...........: ${VGINF.size}"
+  (( VERBOSE == TRUE )) && print -u 2 "# pp_free...........: ${VGINF.free}"
 
   (( KORNOUT == TRUE )) && print -- "${VGINF[*]}"
 
