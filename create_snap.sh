@@ -25,30 +25,26 @@ Author: Raymond L. Cox (rcox@unixandmore.com)
 #### 
 #### Description:
 #### 
-#### Place a full text description of your shell function here.
+#### The create_snap function is used to create a jfs2 +
+#### snapshot from a mounted file system.
 #### 
 #### Assumptions:
 #### 
-#### Provide a list of assumptions your shell function makes,
-#### with a description of each assumption.
+#### The default size used for the snapshot is 10% of the total size +
 #### 
 #### Dependencies:
 #### 
-#### Provide a list of dependencies your shell function has,
-#### with a description of each dependency.
+#### Requires the file system name
 #### 
 #### Products:
 #### 
-#### Provide a list of output your shell function produces,
-#### with a description of each product.
+#### Creates a snaphot and mounts it on a local mountpoint
 #### 
 #### Configured Usage:
 #### 
-#### Describe how your shell function should be used.
 #### 
 #### Details:
 #### 
-#### Place nothing here, the details are your shell function.
 #### 
 ################################################################
 function create_snap {
@@ -129,10 +125,9 @@ function usagemsg_lvinfo {
   print "
 Program: lvinfo
 
-Place a brief description ( < 255 chars ) of your shell
-function here.
+Small function used to return info about a logical volume.
 
-Usage: ${1##*/} [-?vV] 
+Usage: ${1##*/} [-?vV] [ -k -d ] [ -f File SYSTEM ]
 
   Where:
     -v = Verbose mode - displays lvinfo function info
@@ -151,30 +146,34 @@ Author: Raymond L. Cox (rcox@unixandmore.com)
 #### 
 #### Description:
 #### 
-#### Place a full text description of your shell function here.
+#### The lvinfo function retrieves attributes of a +
+#### logical volume for use by other functions. +
+#### This function is not intended to be run directly.
 #### 
 #### Assumptions:
 #### 
-#### Provide a list of assumptions your shell function makes,
-#### with a description of each assumption.
+#### None
 #### 
 #### Dependencies:
 #### 
-#### Provide a list of dependencies your shell function has,
-#### with a description of each dependency.
+#### Requires the file system name.
 #### 
 #### Products:
 #### 
-#### Provide a list of output your shell function produces,
-#### with a description of each product.
+#### Returns an associative array called LVINFO
+#### LVINFO[lv_fs_name]
+#### LVINFO[lv_name]
+#### LVINFO[lv_vg]
+#### LVINFO[lv_vg_pp_free]
+#### LVINFO[lv_vg_pp_size]
+#### LVINFO[lv_lps]
+#### LVINFO[lv_pps]
+#### LVINFO[lv_mirrored]
+#### LVINFO[lv_snap_mb]
 #### 
 #### Configured Usage:
 #### 
-#### Describe how your shell function should be used.
-#### 
 #### Details:
-#### 
-#### Place nothing here, the details are your shell function.
 #### 
 ################################################################
 function lvinfo {
