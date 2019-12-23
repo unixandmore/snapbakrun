@@ -216,12 +216,10 @@ function lvinfo {
       return 1
   fi
 
-
-  LV_SNAP_MB=$(df -tm|grep "${FILESYSTEM}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
-
-  #####!!!!!!!!!!!!!!!Logic error!!!!!!!!!!!!!!!#######
   LV_NAME=$(lsfs "${FILESYSTEM}"| awk 'NR>1 {print $1}'| awk ' BEGIN{FS="/"} {print $3}')
-  #####!!!!!!!!!!!!!!!Logic error!!!!!!!!!!!!!!!#######
+
+  LV_SNAP_MB=$(df -tm|grep "${LV_NAME}"|awk '{used=+$2} END {printf "%.0f", used*.01}')
+
 
   LV_VG=$(lslv ${LV_NAME} | grep "VOLUME GROUP" | sed 's/  *//g'| awk 'BEGIN{FS=":"} {print $3}')
   LV_LP_PP=$(lslv ${LV_NAME}|grep "^LPs"|${sed} 's/  *//g'| ${sed} -r 's/(LPs:|PPs:)/ /g' | awk 'BEGIN{FS=" "} {print $1":"$2}')
