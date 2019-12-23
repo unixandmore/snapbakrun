@@ -104,10 +104,15 @@ function vginfo {
       VGINF+=( ["${vg}"]=(pp_size="${pp_size}" pp_free="${pp_free}"))
   done
 
+  (( VERBOSE == TRUE )) && print "# ${VGINF[*]}"
+
   for IDX in "${!VGINF[@]}"
   do
-      (( KORNOUT == TRUE )) && print "${IDX}=(${VGINF[$IDX].pp_size}:${VGINF[$IDX].pp_free})"
+      (( VERBOSE == TRUE )) && print "# IDX: ${IDX[*]}"
+      #(( KORNOUT == TRUE )) && print "${IDX}=(${VGINF[$IDX].pp_size}:${VGINF[$IDX].pp_free})"
   done
+
+  (( KORNOUT == TRUE )) && print -- "${VGINF[@]}"
 
   trap "-" HUP
 
